@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dijkstra's Algorithm — Priority Queue Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f8f7f4; --surface: #ffffff; --surface2: #f1efe8;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18; --muted: #6b6b66; --hint: #9b9b96;
+    --green-bg: #C0DD97; --green-bd: #639922; --green-text: #27500A;
+    --blue-bg: #B5D4F4; --blue-bd: #185FA5; --blue-text: #0C447C;
+    --amber-bg: #FAC775; --amber-bd: #BA7517; --amber-text: #633806;
+    --coral-bg: #FAECE7; --coral-bd: #F0997B; --coral-text: #993C1D;
+    --purple-bg: #EEEDFE; --purple-bd: #AFA9EC; --purple-text: #3C3489;
+    --teal-bg: #9FE1CB; --teal-bd: #0F6E56; --teal-text: #085041;
+    --wall-bg: #e8e6df; --wall-bd: #b0ae a7;
+    --cell: 52px; --gap: 4px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); min-height: 100vh; }
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header p { font-size: 13px; color: var(--muted); }
+  .chip { font-size: 11px; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); }
+  .chip.green { background: var(--green-bg); border-color: var(--green-bd); color: var(--green-text); }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .leg-dot { width: 13px; height: 13px; border-radius: 3px; border: 1px solid; flex-shrink: 0; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  button { font-size: 12px; font-weight: 500; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; transition: background .12s; }
+  button:hover { background: var(--surface2); }
+  button.primary { background: var(--blue-bg); color: var(--blue-text); border-color: var(--blue-bd); }
+  button:disabled { opacity: .35; cursor: default; }
+  .speed-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-left: auto; }
+  input[type=range] { width: 90px; accent-color: var(--blue-bd); }
+  .mode-row { display: flex; gap: 6px; margin-bottom: 8px; font-size: 12px; align-items: center; }
+  .pill { padding: 4px 11px; border-radius: 99px; border: 1px solid var(--border); cursor: pointer; color: var(--muted); background: transparent; font-size: 12px; font-weight: 500; transition: all .12s; }
+  .pill.on { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+  .hint { font-size: 11px; color: var(--hint); margin-bottom: 12px; }
+  .layout { display: flex; gap: 16px; flex-wrap: wrap; }
+  #grid { display: grid; grid-template-columns: repeat(8, var(--cell)); gap: var(--gap); user-select: none; }
+  .cell {
+    width: var(--cell); height: var(--cell); border-radius: 6px;
+    border: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: background .1s, transform .1s;
+    font-size: 10px; color: var(--muted); background: var(--surface);
+  }
+  .cell:hover { border-color: var(--border2); transform: scale(1.05); z-index: 2; position: relative; }
+  .cell.start { background: var(--green-bg); border-color: var(--green-bd); }
+  .cell.end   { background: var(--blue-bg);  border-color: var(--blue-bd); }
+  .cell.wall  { background: var(--wall-bg);  border-color: #c0beb7; cursor: default; }
+  .cell.wall:hover { transform: none; }
+  .cell.current  { background: var(--amber-bg); border-color: var(--amber-bd); transform: scale(1.09); z-index: 3; position: relative; }
+  .cell.in-queue { background: var(--coral-bg); border-color: var(--coral-bd); }
+  .cell.visited  { background: var(--purple-bg); border-color: var(--purple-bd); }
+  .cell.path     { background: var(--teal-bg); border-color: var(--teal-bd); }
+  .dist { font-size: 9px; font-weight: 600; line-height: 1; }
+  .coord { font-size: 7px; opacity: .5; }
+  .side { flex: 1; min-width: 200px; max-width: 270px; display: flex; flex-direction: column; gap: 12px; }
+  .panel { background: var(--surface); border-radius: 10px; border: 1px solid var(--border); padding: 11px 13px; }
+  .panel h3 { font-size: 10px; font-weight: 600; color: var(--hint); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+  .pq-list { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+  .pq-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 7px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); }
+  .pq-item.top { background: var(--amber-bg); border-color: var(--amber-bd); color: var(--amber-text); font-weight: 600; }
+  .pq-dist { font-weight: 600; min-width: 22px; text-align: right; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .stat-row:last-child { border: none; }
+  .stat-label { color: var(--muted); }
+  .stat-val { font-weight: 600; }
+  .log-list { max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .log-item { font-size: 10px; color: var(--muted); padding: 1px 0; border-bottom: 1px solid var(--border); }
+  .log-item b { color: var(--text); font-weight: 600; }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .tab { font-size: 11px; padding: 5px 10px; cursor: pointer; color: var(--muted); border: none; background: none; border-bottom: 2px solid transparent; font-weight: 500; }
+  .tab.on { color: var(--text); border-bottom-color: var(--text); }
+  table { border-collapse: collapse; font-size: 10px; width: 100%; }
+  th, td { padding: 2px 4px; border: 1px solid var(--border); text-align: center; }
+  th { background: var(--surface2); font-weight: 600; color: var(--muted); }
+  td.hi { background: var(--teal-bg); color: var(--teal-text); font-weight: 700; }
+  td.cur { background: var(--amber-bg); color: var(--amber-text); font-weight: 700; }
+  .done { font-size: 12px; font-weight: 600; color: var(--teal-text); padding: 6px 0; }
+  .no-path { font-size: 12px; font-weight: 600; color: #A32D2D; padding: 6px 0; }
+  footer { text-align: center; padding: 20px; font-size: 11px; color: var(--hint); border-top: 1px solid var(--border); margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Priority Queue–Based Pathfinding</h1>
+    <p>Dijkstra's Algorithm on a grid — step through the min-heap in real time</p>
+  </div>
+  <span class="chip green" id="status-chip">ready</span>
+</header>
+
+<main>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--green-bg);border-color:var(--green-bd)"></div>Start (S)</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--blue-bg);border-color:var(--blue-bd)"></div>Goal (G)</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--amber-bg);border-color:var(--amber-bd)"></div>Current node</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--coral-bg);border-color:var(--coral-bd)"></div>In priority queue</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--purple-bg);border-color:var(--purple-bd)"></div>Visited</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--teal-bg);border-color:var(--teal-bd)"></div>Shortest path</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--wall-bg);border-color:#c0beb7"></div>Wall</div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="btn-step" onclick="step()">Step ▶</button>
+    <button id="btn-play" onclick="togglePlay()">Auto-play</button>
+    <button onclick="resetAlgo()">Reset path</button>
+    <button onclick="clearAll()">Clear all</button>
+    <button onclick="loadPreset()">Load maze</button>
+    <div class="speed-row">
+      Speed <input type="range" id="speed" min="50" max="900" value="400" step="50">
+    </div>
+  </div>
+
+  <div class="mode-row">
+    <span style="color:var(--muted)">Draw:</span>
+    <button class="pill on" id="pill-wall"  onclick="setMode('wall')">Wall</button>
+    <button class="pill"    id="pill-start" onclick="setMode('start')">Start</button>
+    <button class="pill"    id="pill-end"   onclick="setMode('end')">Goal</button>
+  </div>
+
+  <p class="hint">Click cells to toggle walls. Switch to Start/Goal mode to reposition them. Step through to watch the PQ drive pathfinding.</p>
+
+  <div class="layout">
+    <div><div id="grid"></div></div>
+
+    <div class="side">
+      <div class="panel">
+        <h3>Priority Queue (min-heap)</h3>
+        <div class="pq-list" id="pq-list">
+          <div style="font-size:11px;color:var(--hint)">Run to see queue</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Stats</h3>
+        <div class="stat-row"><span class="stat-label">Nodes visited</span><span class="stat-val" id="s-vis">0</span></div>
+        <div class="stat-row"><span class="stat-label">PQ operations</span><span class="stat-val" id="s-ops">0</span></div>
+        <div class="stat-row"><span class="stat-label">Path length</span><span class="stat-val" id="s-len">—</span></div>
+        <div class="stat-row"><span class="stat-label">Path cost</span><span class="stat-val" id="s-cost">—</span></div>
+        <div id="done-msg"></div>
+      </div>
+
+      <div class="panel" style="padding-bottom:4px">
+        <div class="tabs">
+          <button class="tab on" id="tab-log"  onclick="showTab('log')">Event log</button>
+          <button class="tab"    id="tab-dist" onclick="showTab('dist')">Distances</button>
+        </div>
+        <div id="pane-log">
+          <div class="log-list" id="log-list">
+            <div style="font-size:11px;color:var(--hint)">Steps appear here</div>
+          </div>
+        </div>
+        <div id="pane-dist" style="display:none;overflow-x:auto">
+          <div id="dist-table" style="font-size:11px;color:var(--hint)">Run to see distances</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>CS Data Structures Final Project — Dijkstra's Algorithm Demo &nbsp;|&nbsp; Priority Queue (Min-Heap) Implementation</footer>
+
+<script>
+const ROWS=7,COLS=8,INF=1e9;
+let grid=[],dist=[],prev=[],inQueue=[],visited=[];
+let startR=0,startC=1,endR=6,endC=7;
+let pq=[],running=false,finished=false;
+let stepN=0,opsN=0,logs=[],curCell=null,pathCells=[];
+let playing=false,playTimer=null,mode='wall';
+
+function init(){grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));reset();}
+function reset(){
+  dist=Array.from({length:ROWS},()=>Array(COLS).fill(INF));
+  prev=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  inQueue=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  visited=Array.from({length:ROWS},()=>Array(COLS).fill(false));
+  pq=[];running=true;finished=false;stepN=0;opsN=0;logs=[];curCell=null;pathCells=[];
+  if(playing){clearInterval(playTimer);playing=false;document.getElementById('btn-play').textContent='Auto-play';}
+  dist[startR][startC]=0;push(startR,startC,0);
+  render();renderPQ();renderStats();renderLog();
+  document.getElementById('done-msg').innerHTML='';
+  setChip('ready','green');
+  document.getElementById('btn-step').disabled=false;
+  document.getElementById('btn-play').disabled=false;
+}
+function clearAll(){grid=Array.from({length:ROWS},()=>Array(COLS).fill(0));reset();}
+function loadPreset(){
+  clearAll();
+  [[1,3],[2,3],[3,3],[4,3],[4,4],[4,5],[2,5],[3,5],[0,5],[1,5],[3,1],[3,2]].forEach(([r,c])=>grid[r][c]=1);
+  startR=0;startC=1;endR=6;endC=7;reset();
+}
+function setMode(m){
+  mode=m;
+  ['wall','start','end'].forEach(x=>document.getElementById('pill-'+x).classList.toggle('on',x===m));
+}
+function cellClick(r,c){
+  if(finished||!running)reset();
+  if(mode==='wall'){
+    if(r===startR&&c===startC||r===endR&&c===endC)return;
+    grid[r][c]=grid[r][c]?0:1;
+  }else if(mode==='start'){
+    if(r===endR&&c===endC||grid[r][c])return;
+    startR=r;startC=c;
+  }else{
+    if(r===startR&&c===startC||grid[r][c])return;
+    endR=r;endC=c;
+  }
+  reset();
+}
+function push(r,c,d){pq.push([d,r,c]);pq.sort((a,b)=>a[0]-b[0]);inQueue[r][c]=true;opsN++;}
+function pop(){if(!pq.length)return null;const v=pq.shift();opsN++;return v;}
+const DR=[-1,1,0,0],DC=[0,0,-1,1],ARROW=['↑','↓','←','→'];
+function step(){
+  if(!running||finished)return;
+  if(!pq.length){finished=true;running=false;noPath();return;}
+  const [d,r,c]=pop();
+  if(visited[r][c]){render();renderPQ();return;}
+  visited[r][c]=true;inQueue[r][c]=false;curCell=[r,c];stepN++;
+  const goal=r===endR&&c===endC;
+  log(`Pop (${r},${c}) d=${d}${goal?' — GOAL!':''}`);
+  if(goal){
+    finished=true;running=false;tracePath();render();renderPQ();renderStats();renderLog();renderDist();
+    document.getElementById('done-msg').innerHTML=`<div class="done">✓ Path found — cost ${dist[endR][endC]}</div>`;
+    setChip('done','green');
+    document.getElementById('btn-step').disabled=true;
+    document.getElementById('btn-play').disabled=true;
+    if(playing){clearInterval(playTimer);playing=false;document.getElementById('btn-play').textContent='Auto-play';}
+    return;
+  }
+  for(let i=0;i<4;i++){
+    const nr=r+DR[i],nc=c+DC[i];
+    if(nr<0||nr>=ROWS||nc<0||nc>=COLS)continue;
+    if(grid[nr][nc]||visited[nr][nc])continue;
+    const nd=d+1;
+    if(nd<dist[nr][nc]){dist[nr][nc]=nd;prev[nr][nc]=[r,c];push(nr,nc,nd);log(`  Relax (${nr},${nc}) ${ARROW[i]} d=${nd}`);}
+  }
+  render();renderPQ();renderStats();renderLog();renderDist();
+}
+function tracePath(){pathCells=[];let cur=[endR,endC];while(cur){pathCells.push(cur);const[r,c]=cur;cur=prev[r][c];}}
+function noPath(){
+  document.getElementById('done-msg').innerHTML='<div class="no-path">✗ No path exists</div>';
+  setChip('no path','');
+  document.getElementById('btn-step').disabled=true;
+  document.getElementById('btn-play').disabled=true;
+  render();
+}
+function togglePlay(){
+  if(!running)return;playing=!playing;
+  document.getElementById('btn-play').textContent=playing?'Pause':'Auto-play';
+  if(playing){
+    const spd=()=>950-parseInt(document.getElementById('speed').value);
+    playTimer=setInterval(()=>{if(finished||!running){clearInterval(playTimer);playing=false;document.getElementById('btn-play').textContent='Auto-play';return;}step();},spd());
+  }else clearInterval(playTimer);
+}
+function log(m){logs.unshift(m);if(logs.length>80)logs.pop();}
+function setChip(txt,cls){const c=document.getElementById('status-chip');c.textContent=txt;c.className='chip'+(cls?' '+cls:'');}
+function isPath(r,c){return pathCells.some(([pr,pc])=>pr===r&&pc===c);}
+function render(){
+  const g=document.getElementById('grid');
+  let h='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    let cls='cell';
+    if(r===startR&&c===startC)cls+=' start';
+    else if(r===endR&&c===endC)cls+=' end';
+    else if(grid[r][c])cls+=' wall';
+    else if(curCell&&curCell[0]===r&&curCell[1]===c&&!finished)cls+=' current';
+    else if(isPath(r,c)&&finished)cls+=' path';
+    else if(visited[r][c])cls+=' visited';
+    else if(inQueue[r][c])cls+=' in-queue';
+    const d=dist[r][c];
+    const lbl=r===startR&&c===startC?'S':r===endR&&c===endC?'G':'';
+    h+=`<div class="${cls}" onclick="cellClick(${r},${c})">`;
+    if(lbl)h+=`<div class="dist" style="font-size:13px">${lbl}</div>`;
+    else if(d<INF)h+=`<div class="dist">${d}</div>`;
+    h+=`<div class="coord">${r},${c}</div></div>`;
+  }
+  g.innerHTML=h;
+}
+function renderPQ(){
+  const el=document.getElementById('pq-list');
+  if(!pq.length){el.innerHTML='<div style="font-size:11px;color:var(--hint)">Queue empty</div>';return;}
+  el.innerHTML=pq.slice(0,20).map(([d,r,c],i)=>
+    `<div class="pq-item${i===0?' top':''}"><span>${i===0?'→ ':''} (${r},${c})</span><span class="pq-dist">${d}</span></div>`
+  ).join('')+(pq.length>20?`<div style="font-size:10px;color:var(--hint);padding:2px 6px">+${pq.length-20} more</div>`:'');
+}
+function renderStats(){
+  document.getElementById('s-vis').textContent=stepN;
+  document.getElementById('s-ops').textContent=opsN;
+  if(finished&&pathCells.length){
+    document.getElementById('s-len').textContent=pathCells.length+' nodes';
+    document.getElementById('s-cost').textContent=dist[endR][endC]<INF?dist[endR][endC]:'—';
+  }
+}
+function renderLog(){
+  const el=document.getElementById('log-list');
+  if(!logs.length)return;
+  el.innerHTML=logs.map(l=>
+    `<div class="log-item">${l.replace(/(\(\d+,\d+\))/g,'<b>$1</b>').replace(/(d=\d+)/g,'<b>$1</b>')}</div>`
+  ).join('');
+}
+function renderDist(){
+  const el=document.getElementById('dist-table');
+  let h='<table><tr><th></th>';
+  for(let c=0;c<COLS;c++)h+=`<th>${c}</th>`;
+  h+='</tr>';
+  for(let r=0;r<ROWS;r++){
+    h+=`<tr><th>${r}</th>`;
+    for(let c=0;c<COLS;c++){
+      const ip=isPath(r,c)&&finished,ic=curCell&&curCell[0]===r&&curCell[1]===c&&!finished;
+      const cls=ip?' class="hi"':ic?' class="cur"':'';
+      const d=dist[r][c];
+      h+=`<td${cls}>${d>=INF?(grid[r][c]?'#':'∞'):(grid[r][c]?'#':d)}</td>`;
+    }
+    h+='</tr>';
+  }
+  el.innerHTML=h+'</table>';
+}
+function showTab(n){
+  document.getElementById('pane-log').style.display=n==='log'?'':'none';
+  document.getElementById('pane-dist').style.display=n==='dist'?'':'none';
+  document.getElementById('tab-log').classList.toggle('on',n==='log');
+  document.getElementById('tab-dist').classList.toggle('on',n==='dist');
+}
+init();loadPreset();
+</script>
+</body>
+</html>
